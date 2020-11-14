@@ -145,6 +145,6 @@ def breakeven(client):
             existing_stop_price = float(stop[0]["stop_px"])
             existing_stop_size = stop[0]["qty"]
 
-            if existing_stop_size != quantity or existing_stop_price != stop_price:
-                replace_stop_order(client, stop_price, stop_id, quantity)
+            if existing_stop_price != stop_price:
+                replace_stop_order(client, stop_price, existing_stop_id, quantity)
         sleep(15)
