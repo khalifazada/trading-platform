@@ -3,7 +3,7 @@
 from bybit import bybit
 from keys import KEY, SECRET
 from funcs import data, zsl
-import monitor_stop
+from monitor import monitor_stop, breakeven
 import sys
 
 # connect
@@ -39,14 +39,20 @@ if act_pos:
         print(f"Current Price: {price}")
 
         # monitor stop order
-        monitor_stop(client, t=s)
+        # monitor_stop(client, t=s)
+        breakeven(client)
     else:
-        print("\n=== NO SL PRESENT ===")
+        print("\n=== NO SL/BE PRESENT ===")
         ans = str(sys.argv[1])
-        if ans is "Y":
+
+        if ans=="SL":
             # place stop order
             print("=== PLACING SL ===")
             monitor_stop(client, t=s)
+        elif ans=="BE":
+            # place breakeven order
+            print("=== PLACING BE ===")
+            breakeven(client)
         else:
             print("=== EXITING ===")
 else:
