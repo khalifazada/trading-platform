@@ -13,7 +13,6 @@ def open_stop_order(client, stop_price, stop_side, price, quantity):
         sleep(3)
         new_stop_order_id = order[0]["result"]["stop_order_id"]
         print(f"OPENED: {new_stop_order_id}\tAT: {stop_price}")
-        return order
     except Exception as e:
         print("=== OPEN FAILED ===")
         print(str(e))
@@ -22,12 +21,19 @@ def replace_stop_order(client, stop_price, stop_id, quantity):
     try:
         order = client.Conditional.Conditional_replace(symbol="BTCUSD", order_id=stop_id, p_r_qty=quantity, p_r_trigger_price=stop_price).result()
         print(f"UPDATED: {stop_id}\tTO: {stop_price}" if order[0]["ret_msg"]=="ok" else order[0]["ret_msg"])
-        return order
     except Exception as e:
         print("=== UPDATE FAILED ===")
         print(str(e))
 
-def monitor_stop(client, t=30):
+def cancel_stop_order(client, stop_id):
+    try:
+        res = client.Conditional.Conditional_cancel(symbol="BTCUSD", stop_order_id=stop_id).result()
+        print(f"CANCELLED: {existing_stop_id}")
+    except Exception as e:
+        print("=== CANCELLING FAILED ===")
+        print(str(e))
+
+def monitor_stop_order(client, t=30):
 
     while True:
 
@@ -100,7 +106,7 @@ def monitor_stop(client, t=30):
                 print("POSITION CORRECT")
         sleep(15)
 
-def breakeven(client):
+def breakeven_stop_order(client):
 
     while True:
 
@@ -118,18 +124,17 @@ def breakeven(client):
         size = info[0]['result'][0]["size"]
         entry = np.around(info[0]['result'][0]["entry_price"],0)
 
-        # get stops info
-        stop = client.Conditional.Conditional_getOrders(stop_order_status="Untriggered").result()[0]["result"]["data"]
-        stop_side = "Sell" if side=="Buy" else "Buy"
-
-        # get wallet info
+        # wallet balance
         wb = client.Wallet.Wallet_getBalance(coin="BTC").result()[0]["result"]["BTC"]["wallet_balance"]
         wb = int(wb * price)
-        quantity = size - wb
 
-        # prep details
+        # reduce by
+        quantity = wb - size
+
+        # stop above/below entry by delta amount
         delta = int(entry * 0.001)
         stop_price = entry + delta if side=="Buy" else entry - delta
+        stop_side = "Sell" if side=="Buy" else "Buy"
 
         print(f"SIDE: {side}")
         print(f"SIZE: {size}")
@@ -137,14 +142,27 @@ def breakeven(client):
         print(f"WB: {wb}")
         print(f"QUANTITY: {quantity}")
 
-        if not stop:
-            open_stop_order(client, stop_price, stop_side, price, quantity)
-        else:
+        # check for existing stop
+        stop = client.Conditional.Conditional_getOrders(stop_order_status="Untriggered").result()[0]["result"]["data"]
+
+        if not stop and quantity > 0:
+            if side=="Buy" and price > stop_price or side=="Sell" and price < stop_price:
+                open_stop_order(client, stop_price, stop_side, price, quantity)
+            elif price < stop_price and price > entry or price > stop_price and price < entry:
+                print("=== PRICE INSIDE DELTA ===")
+            else:
+                print("=== PRICE OUTSIDE DELTA ===")
+        elif quantity > 0:
             # get info of existing stop order
             existing_stop_id = stop[0]["stop_order_id"]
             existing_stop_price = float(stop[0]["stop_px"])
             existing_stop_size = stop[0]["qty"]
 
-            if existing_stop_price != stop_price:
+            if side=="Buy" and price > stop_price and existing_stop_price==stop_price or side=="Sell" and price < stop_price and existing_stop_price==stop_price:
+                print("=== STOP POSITION CORRECT ===")
+            elif side=="Buy" and price > stop_price and existing_stop_price != stop_price or side=="Sell" and price < stop_price and existing_stop_price != stop_price:
                 replace_stop_order(client, stop_price, existing_stop_id, quantity)
+            else:
+                cancel_stop_order(client, existing_stop_id)
+
         sleep(15)

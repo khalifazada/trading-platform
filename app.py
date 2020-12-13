@@ -9,6 +9,9 @@ from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 import plotly
 
+from bybit import bybit
+from keys import KEY, SECRET
+
 import pandas as pd
 import numpy as np
 from funcs import zsl
@@ -39,6 +42,10 @@ CONTENT_STYLE = {
     "margin-left": "16rem",
     "background-color": colors["light_bg"]
 }
+
+# ==============================================================================
+
+client = bybit(test=False, api_key=KEY, api_secret=SECRET)
 
 # ==============================================================================
 
@@ -152,6 +159,25 @@ def update_graph_live(n, dropdown_selection, period):
                      gridcolor=colors["light_bg"])
 
     fig.update_traces(xaxis="x", hoverinfo="none")
+
+    # get price, positions & stops --------------------------------------------
+
+    price = np.around(float(client.Market.Market_symbolInfo(symbol="BTCUSD").result()[0]['result'][0]['bid_price']),0)
+    fig.add_shape(type="line",x0=-1, y0=price, x1=N+10, y1=price, line=dict(color=colors["white"], width=1))
+
+    # check if open positions exist
+    info = client.Positions.Positions_myPosition().result()
+    if info:
+        entry = np.around(info[0]['result'][0]["entry_price"],0)
+        # plot entry level
+        entry_color = "#fc0303" if price < entry else "#98fc03"
+        fig.add_shape(type="line",x0=-1, y0=entry, x1=N+10, y1=entry, line=dict(color=entry_color, width=2, dash="dot"))
+
+    # check if stops exist
+    stop = client.Conditional.Conditional_getOrders(stop_order_status="Untriggered").result()[0]["result"]["data"]
+    if stop:
+        existing_stop_price = float(stop[0]["stop_px"])
+        fig.add_shape(type="line",x0=-1, y0=existing_stop_price, x1=N+10, y1=existing_stop_price, line=dict(color="#fc0303", width=2, dash="dot"))
 
     return "%.0f" % s.mean(), fig
 

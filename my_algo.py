@@ -3,7 +3,7 @@
 from bybit import bybit
 from keys import KEY, SECRET
 from funcs import data, zsl
-from monitor import monitor_stop, breakeven
+from monitor import monitor_stop_order, breakeven_stop_order
 import sys
 
 # connect
@@ -32,27 +32,28 @@ if act_pos:
 
     # is stop present?
     stop = client.Conditional.Conditional_getOrders(stop_order_status="Untriggered").result()[0]["result"]["data"]
+
     if stop:
         print("\n=== SL PRESENT ===")
         stop_size, stop_side, stop_price = stop[0]["qty"], stop[0]["side"], stop[0]["stop_px"]
         print(f"Stop Size: {stop_size}\tStop Side: {stop_side}\tStop Price: {stop_price}")
         print(f"Current Price: {price}")
 
-        # monitor stop order
-        # monitor_stop(client, t=s)
-        breakeven(client)
+        # monitor_stop_stop_order(client, t=s)
+
+        breakeven_stop_order(client)
     else:
-        print("\n=== NO SL/BE PRESENT ===")
+        print("\n=== NO STOP PRESENT ===")
         ans = str(sys.argv[1])
 
         if ans=="SL":
             # place stop order
-            print("=== PLACING SL ===")
-            monitor_stop(client, t=s)
+            print("=== PLACING STOPLOSS ORDER ===")
+            monitor_stop_order(client, t=s)
         elif ans=="BE":
             # place breakeven order
-            print("=== PLACING BE ===")
-            breakeven(client)
+            print("=== PLACING BREAKEVEN STOP ORDER ===")
+            breakeven_stop_order(client)
         else:
             print("=== EXITING ===")
 else:
