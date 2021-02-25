@@ -1,2 +1,2 @@
-keys/*
-__pycache__/*
+keys.py
+*.pyc
